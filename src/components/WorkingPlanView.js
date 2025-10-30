@@ -296,7 +296,7 @@ const WorkingPlanView = ({ disabled = false, slotErrors = {} }) => {
                           </TextField>
 
                           {/* Speciality */}
-                          <TextField
+                          {/* <TextField
                             select
                             disabled={disabled}
                             label="Speciality"
@@ -319,7 +319,7 @@ const WorkingPlanView = ({ disabled = false, slotErrors = {} }) => {
                                 {sp.type}
                               </MenuItem>
                             ))}
-                          </TextField>
+                          </TextField> */}
 
                           {/* Delete Button */}
                           <Tooltip title="Delete Slot" arrow>

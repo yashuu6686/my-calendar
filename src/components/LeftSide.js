@@ -24,13 +24,13 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import * as yup from "yup";
 import CommonButton from "@/components/CommonButton";
-import Break from "./components/Break";
-import Holiday from "./components/Holiday";
+import Break from "./Break";
+import Holiday from "./Holiday";
 import {
   addServiceSchema,
   breakValidationSchema,
   holidayValidationSchema,
-} from "./validation/validation.js";
+} from "@/utils/validation";
 
 // Redux actions
 import {
@@ -75,8 +75,8 @@ import {
   selectHolidays,
   selectIsLoading,
 } from "@/redux/store/slices/calendarSlice";
-import { generateCalendarPayload } from "./config/payload";
-import WorkingPlanView from "./components/WorkingPlanView";
+import { generateCalendarPayload } from "@/utils/payload";
+import WorkingPlanView from "./WorkingPlanView";
 
 const days = [
   "Monday",
@@ -839,13 +839,19 @@ function LeftSide() {
       sx={{
         p: 2,
         borderRadius: 4,
+         height: "100vh !important",             // limit container height
+        overflowY: "auto",
+        // border: "2px solid black",
+        position:"sticky",
+        top:0,
+        
         // background: "linear-gradient(to bottom, #ffffff 0%, #f8fbff 100%)",
       }}
     >
       {isLoading && (
         <Box
           sx={{
-            position: "fixed",
+            position: "sticky",
             top: 0,
             left: 0,
             right: 0,
@@ -855,6 +861,7 @@ function LeftSide() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
+            minHeight:"100vh",
             zIndex: 9999,
           }}
         >
@@ -890,9 +897,13 @@ function LeftSide() {
         </Box>
       )}
 
-      <Box>
+      <Box
+       
+      >
         {(step === 1 || step === 3) && (
-          <Box>
+          <Box
+         
+          >
             <Box
               sx={{
                 background:
@@ -900,6 +911,7 @@ function LeftSide() {
                 p: 1,
                 borderRadius: 3,
                 mb: 2,
+                
               }}
             >
               <Typography

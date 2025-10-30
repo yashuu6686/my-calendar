@@ -9,7 +9,7 @@ import ThemeRegistry from "@/utils/style";
 import store from "@/redux/store";
 // import Layout from "@/components/Layout";
 
-// import "../src/app/globals.css";
+ import "../src/globals.css";
 // import { CalendarProvider } from "./xyz/context/CalendarContext";
 // import store from "@/redux/store";
 

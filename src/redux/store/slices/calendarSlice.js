@@ -10,7 +10,7 @@ import {
   ortho,
   tooth,
   cardio,
-} from "../../../../pages/tables/component/index";
+} from "../../../utils/index";
 import axios from "axios";
 
 

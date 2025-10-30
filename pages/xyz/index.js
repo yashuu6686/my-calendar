@@ -22,7 +22,7 @@ import {
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import LeftSide from "./LeftSide";
+import LeftSide from "../../src/components/LeftSide";
 import { useDispatch, useSelector } from "react-redux";
 
 import { useRouter } from "next/navigation";
@@ -31,7 +31,7 @@ import { Delete, Edit } from "@mui/icons-material";
 import {
   breakValidationSchema,
   holidayValidationSchema,
-} from "./validation/validation.js";
+} from "../../src/validation/validation.js";
 import * as yup from "yup";
 
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -420,10 +420,10 @@ export default function CalendarMerge() {
   return (
     <Box bgcolor="#f9fafb" p={1}>
       <Grid container spacing={1}>
-        <Grid item xs={12} md={3.5} lg={3} size={{ md: 5 }}>
+        <Grid item xs={12} md={3.5} lg={3} size={{ md: 4 }}>
           <LeftSide />
         </Grid>
-        <Grid item xs={12} md={8.5} lg={9} size={{ md: 7 }}>
+        <Grid item xs={12} md={8.5} lg={9} size={{ md: 8 }}>
           <Paper
             elevation={2}
             sx={{

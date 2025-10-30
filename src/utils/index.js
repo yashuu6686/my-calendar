@@ -56,14 +56,14 @@ export const holidayPickers = [
   },
 ];
 
-export { default as video } from "../../../public/Video_Call_Service.png";
-export { default as clinic } from "../../../public/Clinic_Visit_Service.png";
-export { default as home } from "../../../public/Home_Visit_Service.webp";
-export { default as tooth } from "../../../public/tooth 1.png";
-export { default as gen } from "../../../public/General.png";
-export { default as nuro } from "../../../public/Neurologist.png";
-export { default as ortho } from "../../../public/Orthopaedic.png";
-export { default as cardio } from "../../../public/cardiology.png";
+export { default as video } from "../../public/Video_Call_Service.png";
+export { default as clinic } from "../../public/Clinic_Visit_Service.png";
+export { default as home } from "../../public/Home_Visit_Service.webp";
+export { default as tooth } from "../../public/tooth 1.png";
+export { default as gen } from "../../public/General.png";
+export { default as nuro } from "../../public/Neurologist.png";
+export { default as ortho } from "../../public/Orthopaedic.png";
+export { default as cardio } from "../../public/cardiology.png";
 
 // export { default as WorkingPlan } from "./WorkingPlan";
 // export { default as Specialitie } from "./Specialitie";

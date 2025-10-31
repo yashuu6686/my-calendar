@@ -420,10 +420,10 @@ export default function CalendarMerge() {
   return (
     <Box bgcolor="#f9fafb" p={1}>
       <Grid container spacing={1}>
-        <Grid  size={{ md: 4 }}>
+        <Grid  size={{ md: 3.4,xs:12, }}>
           <LeftSide />
         </Grid>
-        <Grid  size={{ md: 8 }}>
+        <Grid  size={{ md: 8.6 }}>
           <Paper
             elevation={2}
             sx={{

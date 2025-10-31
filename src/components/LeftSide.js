@@ -135,7 +135,7 @@ function LeftSide() {
   // Validation schema for slots
   const slotSchema = yup.object().shape({
     serviceType: yup.string().required("Service type is required"),
-    speciality: yup.string().required("Speciality is required"),
+    // speciality: yup.string().required("Speciality is required"),
     startTime: yup.mixed().required("Start time is required"),
     endTime: yup
       .mixed()
@@ -587,9 +587,9 @@ function LeftSide() {
 
   const handleSubmit = async () => {
   if (step === 1) {
-    // ✅ NEW: Validate WorkingPlanView slots instead of form
+    // ✅ Clear previous errors
     setErrors({});
-     setSlotErrors({})
+    setSlotErrors({});
     
     // Check if there are any slots added
     const hasSlots = weekSchedule.some(day => day.slots.length > 0);
@@ -599,40 +599,88 @@ function LeftSide() {
       return;
     }
     
-    // Validate all slots
+    // ✅ Build errors object structured by day and slotId for UI display
     let hasInvalidSlots = false;
-    const slotErrors = [];
+    const newSlotErrors = {}; // { "Monday": { slotId: { startTime: "error", endTime: "error" } } }
     
-    weekSchedule.forEach(dayData => {
-      dayData.slots.forEach(slot => {
-        // Check if all required fields are filled
-        if (!slot.start || !slot.end || !slot.serviceType || !slot.speciality) {
-          hasInvalidSlots = true;
-          slotErrors.push(`${dayData.day}: Please fill all fields (Start Time, End Time, Service Type, Speciality)`);
-        }
-        
-        // Check if end time is after start time
-        if (slot.start && slot.end && !dayjs(slot.end).isAfter(dayjs(slot.start))) {
-          hasInvalidSlots = true;
-          slotErrors.push(`${dayData.day}: End time must be after start time`);
-        }
-        
-        // Check minimum duration
-        if (slot.start && slot.end && slot.serviceType) {
-          const selectedService = selectedServices.find(s => s.type === slot.serviceType);
-          if (selectedService) {
+    // ✅ Create a modified schema without the overlap test (we'll check that separately)
+    const singleSlotSchema = yup.object().shape({
+      serviceType: yup.string().required("Service type is required"),
+      startTime: yup.mixed().required("Start time is required"),
+      endTime: yup
+        .mixed()
+        .required("End time is required")
+        .test("is-after", "End time must be after start time", function (value) {
+          const { startTime } = this.parent;
+          return value && startTime
+            ? dayjs(value).isAfter(dayjs(startTime))
+            : true;
+        })
+        .test(
+          "minimum-duration",
+          "Slot duration must be at least the service duration",
+          function (endTime) {
+            const { startTime, serviceType } = this.parent;
+            if (!startTime || !endTime || !serviceType) return true;
+
+            const selectedService = selectedServices.find(
+              (s) => s.type === serviceType
+            );
+            if (!selectedService) return true;
+
             const requiredMinutes = parseInt(selectedService.time);
-            const slotDuration = dayjs(slot.end).diff(dayjs(slot.start), 'minute');
-            
-            if (slotDuration < requiredMinutes) {
-              hasInvalidSlots = true;
-              slotErrors.push(`${dayData.day}: Slot duration must be at least ${requiredMinutes} minutes for ${slot.serviceType}`);
+            const start = dayjs(startTime);
+            const end = dayjs(endTime);
+            const slotDurationMinutes = end.diff(start, "minute");
+
+            if (slotDurationMinutes < requiredMinutes) {
+              return this.createError({
+                message: `Min ${requiredMinutes} mins needed`,
+              });
             }
+
+            return true;
+          }
+        ),
+    });
+    
+    // ✅ Validate each slot using Yup schema
+    for (const dayData of weekSchedule) {
+      for (const slot of dayData.slots) {
+        try {
+          // Validate using Yup schema
+          await singleSlotSchema.validate(
+            {
+              startTime: slot.start,
+              endTime: slot.end,
+              serviceType: slot.serviceType,
+            },
+            { abortEarly: false }
+          );
+        } catch (err) {
+          hasInvalidSlots = true;
+          
+          // Initialize error object for this day if needed
+          if (!newSlotErrors[dayData.day]) {
+            newSlotErrors[dayData.day] = {};
+          }
+          if (!newSlotErrors[dayData.day][slot.id]) {
+            newSlotErrors[dayData.day][slot.id] = {};
+          }
+          
+          // Map Yup errors to our error structure
+          if (err.inner) {
+            err.inner.forEach((e) => {
+              newSlotErrors[dayData.day][slot.id][e.path] = e.message;
+            });
+          } else {
+            // Handle single error
+            newSlotErrors[dayData.day][slot.id][err.path || 'general'] = err.message;
           }
         }
-      });
+      }
       
-      // Check for overlapping slots within the same day
+      // ✅ Check for overlapping slots within the same day
       if (dayData.slots.length > 1) {
         for (let i = 0; i < dayData.slots.length; i++) {
           for (let j = i + 1; j < dayData.slots.length; j++) {
@@ -645,28 +693,54 @@ function LeftSide() {
               const start2 = dayjs(slot2.start);
               const end2 = dayjs(slot2.end);
               
+              // Check if slots overlap
               if (start1.isBefore(end2) && end1.isAfter(start2)) {
                 hasInvalidSlots = true;
-                slotErrors.push(`${dayData.day}: Time slots overlap`);
-                break;
+                
+                // Initialize error objects if they don't exist
+                if (!newSlotErrors[dayData.day]) {
+                  newSlotErrors[dayData.day] = {};
+                }
+                if (!newSlotErrors[dayData.day][slot1.id]) {
+                  newSlotErrors[dayData.day][slot1.id] = {};
+                }
+                if (!newSlotErrors[dayData.day][slot2.id]) {
+                  newSlotErrors[dayData.day][slot2.id] = {};
+                }
+                
+                // Add overlap error to end time of both slots
+                newSlotErrors[dayData.day][slot1.id].endTime = "Time slots overlap";
+                newSlotErrors[dayData.day][slot2.id].endTime = "Time slots overlap";
               }
             }
           }
         }
       }
-    });
+    }
     
+    // ✅ If there are validation errors, set them and show alert
     if (hasInvalidSlots) {
-      // Show the first error
-      alert(slotErrors[0]);
+      setSlotErrors(newSlotErrors);
+      
+      // Find and show the first error
+      const firstErrorDay = Object.keys(newSlotErrors)[0];
+      if (firstErrorDay) {
+        const firstSlotErrors = Object.values(newSlotErrors[firstErrorDay])[0];
+        const firstErrorField = Object.keys(firstSlotErrors)[0];
+        const firstErrorMessage = firstSlotErrors[firstErrorField];
+        
+        alert(`Validation Error on ${firstErrorDay}: ${firstErrorMessage}`);
+      }
+      
       return;
     }
     
     // ✅ If all validations pass, move to step 2
+    setSlotErrors({}); // Clear any previous errors
     setStep(2);
     
   } else if (step === 2) {
-    // Your existing step 2 validation code remains the same
+    // Your existing step 2 validation code
     setErrors({});
     setHolidayErrors({});
     setBreakErrors({});
@@ -677,16 +751,9 @@ function LeftSide() {
 
     let validationFailed = false;
 
-    // ✅ Validate BREAKS first
+    // Validate BREAKS
     if (hasBreakData) {
       try {
-        console.log("🔍 Validating Break...");
-        console.log("Break Selected Days:", breakSelectedDays);
-        console.log("Start Time:", startTime);
-        console.log("End Time:", endTime);
-        console.log("Existing Breaks:", breaks);
-        console.log("Edit Index:", editIndex);
-
         await breakValidationSchema.validate(
           {
             breakSelectedDays,
@@ -701,31 +768,21 @@ function LeftSide() {
             },
           }
         );
-
-        console.log("✅ Break validation passed!");
       } catch (breakErr) {
         validationFailed = true;
-        console.log("❌ Break validation failed:", breakErr);
-
         if (breakErr.inner) {
           const newBreakErrors = {};
           breakErr.inner.forEach((e) => {
             newBreakErrors[e.path] = e.message;
           });
           setBreakErrors(newBreakErrors);
-          console.log("Break Errors:", newBreakErrors);
         }
       }
     }
 
-    // ✅ Validate HOLIDAYS
+    // Validate HOLIDAYS
     if (hasHolidayData) {
       try {
-        console.log("🔍 Validating Holiday...");
-        console.log("Holiday Values:", holidayValues);
-        console.log("Existing Holidays:", holidays);
-        console.log("Holiday Edit Index:", holidayEditIndex);
-
         const existingHolidaysForValidation =
           holidayEditIndex !== null && holidayEditIndex !== undefined
             ? holidays.filter((_, index) => index !== holidayEditIndex)
@@ -745,37 +802,30 @@ function LeftSide() {
             },
           }
         );
-
-        console.log("✅ Holiday validation passed!");
       } catch (holidayErr) {
         validationFailed = true;
-        console.log("❌ Holiday validation failed:", holidayErr);
-
         if (holidayErr.inner) {
           const newHolidayErrors = {};
           holidayErr.inner.forEach((e) => {
             newHolidayErrors[e.path] = e.message;
           });
           setHolidayErrors(newHolidayErrors);
-          console.log("Holiday Errors:", newHolidayErrors);
         }
       }
     }
 
-    // ✅ Stop if validation failed
     if (validationFailed) {
-      console.log("❌ Validation failed, stopping submission");
       return;
     }
 
-    // ✅ Update events
+    // Update events
     dispatch(updateEvents());
 
-    // ✅ Save breaks and holidays
+    // Save breaks and holidays
     handleLogValues();
     logHolidayValues();
 
-    // ✅ Update calendar state
+    // Update calendar state
     dispatch(setIsCalendarPublished(true));
     dispatch(setIsEditMode(false));
     dispatch(setForm({}));
@@ -796,14 +846,12 @@ function LeftSide() {
 
     console.log("📦 Generated Payload:", payload);
 
-    // ✅ Call API
+    // Call API
     setTimeout(async () => {
       let result;
       if (isCalendarPublished) {
-        console.log("🔄 Updating calendar...");
         result = await updateCalendarToAPI(payload);
       } else {
-        console.log("📅 Publishing new calendar...");
         result = await publishCalendarToAPI(payload);
       }
 
@@ -815,8 +863,6 @@ function LeftSide() {
         dispatch(setEditingSlot(null));
         dispatch(createDoctorCalendar());
         setStep(1);
-      } else {
-        console.error("❌ API call failed, staying on step 2");
       }
     }, 600);
 

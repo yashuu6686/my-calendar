@@ -11,6 +11,7 @@ import {
   Chip,
   Stack,
   Paper,
+  Divider,
 } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -63,7 +64,7 @@ const WorkingPlanView = ({ disabled = false, slotErrors = {} }) => {
       payload: { day, slotId },
     });
   };
-   const getDaySlots = (dayName) => {
+  const getDaySlots = (dayName) => {
     const dayData = weekSchedule.find((d) => d.day === dayName);
     return dayData ? dayData.slots : [];
   };
@@ -73,6 +74,12 @@ const WorkingPlanView = ({ disabled = false, slotErrors = {} }) => {
       type: "calendar/updateSlotInDay",
       payload: { day, slotId, field, value },
     });
+    if (value && slotErrors[day]?.[slotId]?.[field]) {
+      dispatch({
+        type: "calendar/clearSlotError",
+        payload: { day, slotId, field },
+      });
+    }
   };
 
   // ✅ Get slots for a specific day
@@ -210,147 +217,193 @@ const WorkingPlanView = ({ disabled = false, slotErrors = {} }) => {
                       {daySlots.map((slot) => {
                         const errors = getSlotErrors(day.full, slot.id);
                         return (
-
-                        <Box
-                          key={slot.id}
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1.5,
-                          }}
-                        >
-                          {/* Start Time */}
-                          <TimePicker
-                            sx={{ ".MuiButtonBase-root": { padding: "0px" } }}
-                            disabled={disabled}
-                            label="Start Time"
-                            value={slot.start ? dayjs(slot.start) : null}
-                            onChange={(newVal) =>
-                              handleSlotChange(
-                                day.full,
-                                slot.id,
-                                "start",
-                                newVal
-                              )
-                            }
-                            slotProps={{
-                              textField: { size: "small", sx: { width: 140 }, error: !!errors.startTime,
-                                      helperText: errors.startTime || " ", },
+                          <Box
+                            key={slot.id}
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              // gap: 1,
+                              mb: 1.5,
                             }}
-                          />
-
-                          {/* End Time */}
-                          <TimePicker
-                            disabled={disabled}
-                            label="End Time"
-                            value={slot.end ? dayjs(slot.end) : null}
-                            onChange={(newVal) =>
-                              handleSlotChange(day.full, slot.id, "end", newVal)
-                            }
-                            slotProps={{
-                              textField: { size: "small", sx: { width: 140 },   error: !!errors.endTime,
-                                      helperText: errors.endTime || " ", },
-                            }}
-                          />
-
-                          {/* Service Type */}
-                          <TextField
-                            select
-                            disabled={disabled}
-                            label="Service Type"
-                            size="small"
-                            sx={{ width: 180 }}
-                            value={slot.serviceType || ""}
-                            error={!!errors.serviceType}
-                                helperText={errors.serviceType || " "}
-                            onChange={(e) =>
-                              handleSlotChange(
-                                day.full,
-                                slot.id,
-                                "serviceType",
-                                e.target.value
-                              )
-                            }
                           >
-                            {selectedServices.map((s) => (
-                              <MenuItem key={s.type} value={s.type}>
-                                <Stack
-                                  direction="row"
-                                  spacing={1}
-                                  alignItems="center"
-                                >
-                                  <span>{s.type}</span>
-                                  <Chip
-                                    label={`${s.time}m`}
-                                    size="small"
-                                    sx={{
-                                      height: 20,
-                                      fontSize: "0.7rem",
-                                      bgcolor: "#e3f2fd",
-                                      color: "#1565c0",
-                                    }}
-                                  />
-                                </Stack>
-                              </MenuItem>
-                            ))}
-                          </TextField>
-
-                          {/* Speciality */}
-                          {/* <TextField
-                            select
-                            disabled={disabled}
-                            label="Speciality"
-                            size="small"
-                            sx={{ width: 160 }}
-                            value={slot.speciality || ""}
-                             error={!!errors.speciality}
-                                helperText={errors.speciality || " "}
-                            onChange={(e) =>
-                              handleSlotChange(
-                                day.full,
-                                slot.id,
-                                "speciality",
-                                e.target.value
-                              )
-                            }
-                          >
-                            {selectedSpecialities.map((sp) => (
-                              <MenuItem key={sp.type} value={sp.type}>
-                                {sp.type}
-                              </MenuItem>
-                            ))}
-                          </TextField> */}
-
-                          {/* Delete Button */}
-                          <Tooltip title="Delete Slot" arrow>
-                            <IconButton
-                              size="small"
-                              disabled={disabled}
-                              onClick={() =>
-                                handleDeleteSlot(day.full, slot.id)
-                              }
+                            {/* Row 1: Start Time, End Time, Delete */}
+                            <Box
                               sx={{
-                                color: "#d32f2f",
-                                bgcolor: "#ffebee",
-                                width: 36,
-                                height: 36,
-                                "&:hover": {
-                                  bgcolor: "#ffcdd2",
-                                  transform: "scale(1.1)",
-                                },
-                                "&:disabled": {
-                                  bgcolor: "#fce4ec",
-                                  color: "#e57373",
-                                },
-                                transition: "all 0.2s",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1.5,
+                                mb: 2,
                               }}
                             >
-                              <DeleteOutlineIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                        )
-          })}
+                              {/* Start Time */}
+                              <TimePicker
+                                // fullwidth
+
+                                disabled={disabled}
+                                label="Start Time"
+                                value={slot.start ? dayjs(slot.start) : null}
+                                onChange={(newVal) =>
+                                  handleSlotChange(
+                                    day.full,
+                                    slot.id,
+                                    "start",
+                                    newVal
+                                  )
+                                }
+                                slotProps={{
+                                  textField: {
+                                    // size: "small",
+                                    // sx: { width: 140 },
+                                    error: !!errors.startTime,
+                                    helperText: errors.startTime,
+                                    sx: {
+                                      "& .MuiOutlinedInput-root": {
+                                        borderRadius: 2.5,
+                                        boxShadow:
+                                          "0 2px 8px rgba(25, 118, 210, 0.12)",
+                                        "&:hover fieldset": {
+                                          borderColor: "#1976d2",
+                                        },
+                                        "&.Mui-focused fieldset": {
+                                          borderColor: "#1976d2",
+                                          borderWidth: 2,
+                                        },
+                                      },
+                                      "& .MuiInputLabel-root.Mui-focused": {
+                                        color: "#1976d2",
+                                      },
+                                      ".MuiPickersInputBase-root": {
+                                        boxShadow:
+                                          "inset 4px 2px 8px rgba(95, 157, 231, .48), inset -4px -2px 8px #fff",
+                                        borderRadius: 3,
+                                      },
+                                    },
+                                  },
+                                }}
+                              />
+
+                              {/* End Time */}
+                              <TimePicker
+                                disabled={disabled}
+                                label="End Time"
+                                value={slot.end ? dayjs(slot.end) : null}
+                                onChange={(newVal) =>
+                                  handleSlotChange(
+                                    day.full,
+                                    slot.id,
+                                    "end",
+                                    newVal
+                                  )
+                                }
+                                slotProps={{
+                                  textField: {
+                                    // size: "small",
+                                    // sx: { width: 140 },
+                                    error: !!errors.endTime,
+                                    helperText: errors.endTime,
+                                    sx: {
+                                      "& .MuiOutlinedInput-root": {
+                                        borderRadius: 2.5,
+                                        boxShadow:
+                                          "0 2px 8px rgba(25, 118, 210, 0.12)",
+                                        "&:hover fieldset": {
+                                          borderColor: "#1976d2",
+                                        },
+                                        "&.Mui-focused fieldset": {
+                                          borderColor: "#1976d2",
+                                          borderWidth: 2,
+                                        },
+                                      },
+                                      "& .MuiInputLabel-root.Mui-focused": {
+                                        color: "#1976d2",
+                                      },
+                                      ".MuiPickersInputBase-root": {
+                                        boxShadow:
+                                          "inset 4px 2px 8px rgba(95, 157, 231, .48), inset -4px -2px 8px #fff",
+                                        borderRadius: 3,
+                                      },
+                                    },
+                                  },
+                                }}
+                              />
+
+                              {/* Delete Button */}
+                              <Tooltip title="Delete Slot">
+                                <IconButton
+                                  size="small"
+                                  disabled={disabled}
+                                  onClick={() =>
+                                    handleDeleteSlot(day.full, slot.id)
+                                  }
+                                  sx={{
+                                    color: "#d32f2f",
+                                    bgcolor: "#ffebee",
+                                    width: 36,
+                                    height: 36,
+                                    "&:hover": {
+                                      bgcolor: "#ffcdd2",
+                                      transform: "scale(1.1)",
+                                    },
+                                    "&:disabled": {
+                                      bgcolor: "#fce4ec",
+                                      color: "#e57373",
+                                    },
+                                    transition: "all 0.2s",
+                                  }}
+                                >
+                                  <DeleteOutlineIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Divider />
+                            </Box>
+
+                            {/* Row 2: Service Type */}
+                            <TextField
+                              select
+                              disabled={disabled}
+                              label="Service Type"
+                              sx={{
+                                "& .MuiOutlinedInput-root": {
+                                  borderRadius: 3 // ✅ applies border radius
+                                },
+                              }}
+                              value={slot.serviceType || ""}
+                              error={!!errors.serviceType}
+                              helperText={errors.serviceType || " "}
+                              onChange={(e) =>
+                                handleSlotChange(
+                                  day.full,
+                                  slot.id,
+                                  "serviceType",
+                                  e.target.value
+                                )
+                              }
+                            >
+                              {selectedServices.map((s) => (
+                                <MenuItem key={s.type} value={s.type}>
+                                  <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    alignItems="center"
+                                  >
+                                    <span>{s.type}</span>
+                                    <Chip
+                                      label={`${s.time}m`}
+                                      size="small"
+                                      sx={{
+                                        height: 20,
+                                        fontSize: "0.7rem",
+                                        bgcolor: "#e3f2fd",
+                                        color: "#1565c0",
+                                      }}
+                                    />
+                                  </Stack>
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </Box>
+                        );
+                      })}
                     </Stack>
                   )}
                 </Box>

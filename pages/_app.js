@@ -1,9 +1,10 @@
-"use client";
+
 
 import { Provider } from "react-redux";
 // import { store, persistor } from "@/store/store";
 // import { PersistGate } from "redux-persist/integration/react";
 import { ThemeProvider } from "@mui/material";
+
 import style from "@/utils/style";
 import ThemeRegistry from "@/utils/style";
 import store from "@/redux/store";

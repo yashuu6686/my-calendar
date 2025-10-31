@@ -76,3 +76,6 @@
 .rbc-time-view .rbc-allday-cell{
   height: 0px !important;
 }
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}

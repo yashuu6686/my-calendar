@@ -8,7 +8,7 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
    
     getDefaultMiddleware({
-         serializableCheck: false,
+          serializableCheck: false,
       serializableCheck: {
         // Ignore these paths in the state for serialization checks
         // (dayjs objects are not serializable)

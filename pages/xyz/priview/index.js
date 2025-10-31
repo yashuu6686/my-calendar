@@ -45,7 +45,7 @@ function Preview() {
           .set({ hour: slot.end.hour(), minute: slot.end.minute() });
 
         const intervalMinutes = slot.duration || 15;
-        const intervals = generateTimeSlots(start, end, intervalMinutes);
+      const intervals = generateTimeSlots(start, end, intervalMinutes);
 
         intervals.forEach((i) => {
           divided.push({
@@ -53,6 +53,8 @@ function Preview() {
             start: i.start,
             end: i.end,
             color: "#1c95f1ff",
+             serviceType: slot.serviceType, // ✅ Add service type for reference
+          duration: intervalMinutes
           });
         });
       });

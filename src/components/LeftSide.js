@@ -133,70 +133,106 @@ function LeftSide() {
   const [addServiceError, setAddServiceError] = useState({});
 
   // Validation schema for slots
-  const slotSchema = yup.object().shape({
-    serviceType: yup.string().required("Service type is required"),
-    // speciality: yup.string().required("Speciality is required"),
-    startTime: yup.mixed().required("Start time is required"),
-    endTime: yup
-      .mixed()
-      .required("End time is required")
-      .test("is-after", "End time must be after start time", function (value) {
-        const { startTime } = this.parent;
-        return value && startTime
-          ? dayjs(value).isAfter(dayjs(startTime))
-          : true;
-      })
-      .test(
-        "minimum-duration",
-        "Slot duration must be at least the service duration",
-        function (endTime) {
-          const { startTime, serviceType } = this.parent;
-          if (!startTime || !endTime || !serviceType) return true;
+  // const slotSchema = yup.object().shape({
+  //   serviceType: yup.string().required("Service type is required"),
+  //   // speciality: yup.string().required("Speciality is required"),
+  //   startTime: yup.mixed().required("Start time is required"),
+  //   endTime: yup
+  //     .mixed()
+  //     .required("End time is required")
+  //     .test("is-after", "End time must be after start time", function (value) {
+  //       const { startTime } = this.parent;
+  //       return value && startTime
+  //         ? dayjs(value).isAfter(dayjs(startTime))
+  //         : true;
+  //     })
+  //     .test(
+  //       "minimum-duration",
+  //       "Slot duration must be at least the service duration",
+  //       function (endTime) {
+  //         const { startTime, serviceType } = this.parent;
+  //         if (!startTime || !endTime || !serviceType) return true;
 
-          const selectedService = dataOfService.find(
-            (s) => s.type === serviceType
-          );
-          if (!selectedService) return true;
+  //         const selectedService = dataOfService.find(
+  //           (s) => s.type === serviceType
+  //         );
+  //         if (!selectedService) return true;
 
-          const requiredMinutes = selectedService.time;
-          const start = dayjs(startTime);
-          const end = dayjs(endTime);
-          const slotDurationMinutes = end.diff(start, "minute");
+  //         const requiredMinutes = selectedService.time;
+  //         const start = dayjs(startTime);
+  //         const end = dayjs(endTime);
+  //         const slotDurationMinutes = end.diff(start, "minute");
 
-          if (slotDurationMinutes < requiredMinutes) {
-            return this.createError({
-              message: `Please select valid Start Time & End Time.`,
-            });
-          }
+  //         if (slotDurationMinutes < requiredMinutes) {
+  //           return this.createError({
+  //             message: `Please select valid Start Time & End Time.`,
+  //           });
+  //         }
 
-          return true;
-        }
-      )
-      .test(
-        "no-overlap",
-        "This time slot is already booked.",
-        function (endTime) {
+  //         return true;
+  //       }
+  //     )
+  //     .test(
+  //       "no-overlap",
+  //       "This time slot is already booked.",
+  //       function (endTime) {
+  //         const { startTime } = this.parent;
+  //         if (!startTime || !endTime || !selectedDays.length) return true;
+
+  //         const newStart = dayjs(startTime);
+  //         const newEnd = dayjs(endTime);
+
+  //         return !selectedDays.some((day) => {
+  //           const dayData = weekSchedule.find((d) => d.day === day);
+  //           return dayData?.slots.some((slot) => {
+  //             if (editingSlot && slot.id === editingSlot.id) {
+  //               return false;
+  //             }
+  //             return (
+  //               newStart.isBefore(dayjs(slot.end)) &&
+  //               newEnd.isAfter(dayjs(slot.start))
+  //             );
+  //           });
+  //         });
+  //       }
+  //     ),
+  // });
+
+  const singleSlotSchema = yup.object().shape({
+      serviceType: yup.string().required("Service type is required"),
+      startTime: yup.mixed().required("Start time is required"),
+      endTime: yup
+        .mixed()
+        .required("End time is required")
+        .test("is-after", "End time must be after start time", function (value) {
           const { startTime } = this.parent;
-          if (!startTime || !endTime || !selectedDays.length) return true;
+          return value && startTime ? dayjs(value).isAfter(dayjs(startTime)) : true;
+        })
+        .test(
+          "minimum-duration",
+          "Slot duration must be at least the service duration",
+          function (endTime) {
+            const { startTime, serviceType } = this.parent;
+            if (!startTime || !endTime || !serviceType) return true;
 
-          const newStart = dayjs(startTime);
-          const newEnd = dayjs(endTime);
+            const selectedService = selectedServices.find((s) => s.type === serviceType);
+            if (!selectedService) return true;
 
-          return !selectedDays.some((day) => {
-            const dayData = weekSchedule.find((d) => d.day === day);
-            return dayData?.slots.some((slot) => {
-              if (editingSlot && slot.id === editingSlot.id) {
-                return false;
-              }
-              return (
-                newStart.isBefore(dayjs(slot.end)) &&
-                newEnd.isAfter(dayjs(slot.start))
-              );
-            });
-          });
-        }
-      ),
-  });
+            const requiredMinutes = parseInt(selectedService.time);
+            const start = dayjs(startTime);
+            const end = dayjs(endTime);
+            const slotDurationMinutes = end.diff(start, "minute");
+
+            if (slotDurationMinutes < requiredMinutes) {
+              return this.createError({
+                message: `Min ${requiredMinutes} mins needed`,
+              });
+            }
+            return true;
+          }
+        ),
+    });
+    
 
   // Update slot action (add this to Redux slice if not present)
   const updateSlot = (days, slotId, updatedSlot) => {
@@ -584,71 +620,22 @@ function LeftSide() {
   //   }
   // };
 
-
   const handleSubmit = async () => {
-  if (step === 1) {
-    // ✅ Clear previous errors
+  // ✅ Handle EDITING SLOT case FIRST (before step logic)
+  if (editingSlot) {
+    // Clear previous errors
     setErrors({});
     setSlotErrors({});
     
-    // Check if there are any slots added
-    const hasSlots = weekSchedule.some(day => day.slots.length > 0);
-    
-    if (!hasSlots) {
-      alert("Please add at least one time slot before proceeding.");
-      return;
-    }
-    
-    // ✅ Build errors object structured by day and slotId for UI display
+    // Build errors for the slots being edited
     let hasInvalidSlots = false;
-    const newSlotErrors = {}; // { "Monday": { slotId: { startTime: "error", endTime: "error" } } }
+    const newSlotErrors = {};
     
-    // ✅ Create a modified schema without the overlap test (we'll check that separately)
-    const singleSlotSchema = yup.object().shape({
-      serviceType: yup.string().required("Service type is required"),
-      startTime: yup.mixed().required("Start time is required"),
-      endTime: yup
-        .mixed()
-        .required("End time is required")
-        .test("is-after", "End time must be after start time", function (value) {
-          const { startTime } = this.parent;
-          return value && startTime
-            ? dayjs(value).isAfter(dayjs(startTime))
-            : true;
-        })
-        .test(
-          "minimum-duration",
-          "Slot duration must be at least the service duration",
-          function (endTime) {
-            const { startTime, serviceType } = this.parent;
-            if (!startTime || !endTime || !serviceType) return true;
-
-            const selectedService = selectedServices.find(
-              (s) => s.type === serviceType
-            );
-            if (!selectedService) return true;
-
-            const requiredMinutes = parseInt(selectedService.time);
-            const start = dayjs(startTime);
-            const end = dayjs(endTime);
-            const slotDurationMinutes = end.diff(start, "minute");
-
-            if (slotDurationMinutes < requiredMinutes) {
-              return this.createError({
-                message: `Min ${requiredMinutes} mins needed`,
-              });
-            }
-
-            return true;
-          }
-        ),
-    });
     
-    // ✅ Validate each slot using Yup schema
+    // Validate all slots in weekSchedule
     for (const dayData of weekSchedule) {
       for (const slot of dayData.slots) {
         try {
-          // Validate using Yup schema
           await singleSlotSchema.validate(
             {
               startTime: slot.start,
@@ -659,28 +646,23 @@ function LeftSide() {
           );
         } catch (err) {
           hasInvalidSlots = true;
-          
-          // Initialize error object for this day if needed
           if (!newSlotErrors[dayData.day]) {
             newSlotErrors[dayData.day] = {};
           }
           if (!newSlotErrors[dayData.day][slot.id]) {
             newSlotErrors[dayData.day][slot.id] = {};
           }
-          
-          // Map Yup errors to our error structure
           if (err.inner) {
             err.inner.forEach((e) => {
               newSlotErrors[dayData.day][slot.id][e.path] = e.message;
             });
           } else {
-            // Handle single error
             newSlotErrors[dayData.day][slot.id][err.path || 'general'] = err.message;
           }
         }
       }
       
-      // ✅ Check for overlapping slots within the same day
+      // Check for overlapping slots within the same day
       if (dayData.slots.length > 1) {
         for (let i = 0; i < dayData.slots.length; i++) {
           for (let j = i + 1; j < dayData.slots.length; j++) {
@@ -693,11 +675,8 @@ function LeftSide() {
               const start2 = dayjs(slot2.start);
               const end2 = dayjs(slot2.end);
               
-              // Check if slots overlap
               if (start1.isBefore(end2) && end1.isAfter(start2)) {
                 hasInvalidSlots = true;
-                
-                // Initialize error objects if they don't exist
                 if (!newSlotErrors[dayData.day]) {
                   newSlotErrors[dayData.day] = {};
                 }
@@ -707,8 +686,6 @@ function LeftSide() {
                 if (!newSlotErrors[dayData.day][slot2.id]) {
                   newSlotErrors[dayData.day][slot2.id] = {};
                 }
-                
-                // Add overlap error to end time of both slots
                 newSlotErrors[dayData.day][slot1.id].endTime = "Time slots overlap";
                 newSlotErrors[dayData.day][slot2.id].endTime = "Time slots overlap";
               }
@@ -718,29 +695,158 @@ function LeftSide() {
       }
     }
     
-    // ✅ If there are validation errors, set them and show alert
     if (hasInvalidSlots) {
       setSlotErrors(newSlotErrors);
-      
-      // Find and show the first error
       const firstErrorDay = Object.keys(newSlotErrors)[0];
       if (firstErrorDay) {
         const firstSlotErrors = Object.values(newSlotErrors[firstErrorDay])[0];
         const firstErrorField = Object.keys(firstSlotErrors)[0];
         const firstErrorMessage = firstSlotErrors[firstErrorField];
-        
-        alert(`Validation Error on ${firstErrorDay}: ${firstErrorMessage}`);
+        // alert(`Validation Error on ${firstErrorDay}: ${firstErrorMessage}`);
       }
-      
       return;
     }
     
-    // ✅ If all validations pass, move to step 2
-    setSlotErrors({}); // Clear any previous errors
-    setStep(2);
+    // ✅ If validation passes, update events and clear editing state
+    dispatch(updateEvents());
+    dispatch(setEditingSlot(null));
+    dispatch(setForm({}));
+    dispatch(setSelectedDays([]));
+    setSlotErrors({});
+    alert("Slot updated successfully!");
+    return; // ✅ IMPORTANT: Stop here, don't go to step 2
+  }
+  
+  // ✅ NOW handle step 1 (adding new slots)
+  if (step === 1) {
+    setErrors({});
+    setSlotErrors({});
+    
+    const hasSlots = weekSchedule.some(day => day.slots.length > 0);
+    
+    if (!hasSlots) {
+      alert("Please add at least one time slot before proceeding.");
+      return;
+    }
+    
+    let hasInvalidSlots = false;
+    const newSlotErrors = {};
+    
+    // const singleSlotSchema = yup.object().shape({
+    //   serviceType: yup.string().required("Service type is required"),
+    //   startTime: yup.mixed().required("Start time is required"),
+    //   endTime: yup
+    //     .mixed()
+    //     .required("End time is required")
+    //     .test("is-after", "End time must be after start time", function (value) {
+    //       const { startTime } = this.parent;
+    //       return value && startTime ? dayjs(value).isAfter(dayjs(startTime)) : true;
+    //     })
+    //     .test(
+    //       "minimum-duration",
+    //       "Slot duration must be at least the service duration",
+    //       function (endTime) {
+    //         const { startTime, serviceType } = this.parent;
+    //         if (!startTime || !endTime || !serviceType) return true;
+
+    //         const selectedService = selectedServices.find((s) => s.type === serviceType);
+    //         if (!selectedService) return true;
+
+    //         const requiredMinutes = parseInt(selectedService.time);
+    //         const start = dayjs(startTime);
+    //         const end = dayjs(endTime);
+    //         const slotDurationMinutes = end.diff(start, "minute");
+
+    //         if (slotDurationMinutes < requiredMinutes) {
+    //           return this.createError({
+    //             message: `Min ${requiredMinutes} mins needed`,
+    //           });
+    //         }
+    //         return true;
+    //       }
+    //     ),
+    // });
+    
+    // Validate each slot
+    for (const dayData of weekSchedule) {
+      for (const slot of dayData.slots) {
+        try {
+          await singleSlotSchema.validate(
+            {
+              startTime: slot.start,
+              endTime: slot.end,
+              serviceType: slot.serviceType,
+            },
+            { abortEarly: false }
+          );
+        } catch (err) {
+          hasInvalidSlots = true;
+          if (!newSlotErrors[dayData.day]) {
+            newSlotErrors[dayData.day] = {};
+          }
+          if (!newSlotErrors[dayData.day][slot.id]) {
+            newSlotErrors[dayData.day][slot.id] = {};
+          }
+          if (err.inner) {
+            err.inner.forEach((e) => {
+              newSlotErrors[dayData.day][slot.id][e.path] = e.message;
+            });
+          } else {
+            newSlotErrors[dayData.day][slot.id][err.path || 'general'] = err.message;
+          }
+        }
+      }
+      
+      // Check overlaps
+      if (dayData.slots.length > 1) {
+        for (let i = 0; i < dayData.slots.length; i++) {
+          for (let j = i + 1; j < dayData.slots.length; j++) {
+            const slot1 = dayData.slots[i];
+            const slot2 = dayData.slots[j];
+            
+            if (slot1.start && slot1.end && slot2.start && slot2.end) {
+              const start1 = dayjs(slot1.start);
+              const end1 = dayjs(slot1.end);
+              const start2 = dayjs(slot2.start);
+              const end2 = dayjs(slot2.end);
+              
+              if (start1.isBefore(end2) && end1.isAfter(start2)) {
+                hasInvalidSlots = true;
+                if (!newSlotErrors[dayData.day]) {
+                  newSlotErrors[dayData.day] = {};
+                }
+                if (!newSlotErrors[dayData.day][slot1.id]) {
+                  newSlotErrors[dayData.day][slot1.id] = {};
+                }
+                if (!newSlotErrors[dayData.day][slot2.id]) {
+                  newSlotErrors[dayData.day][slot2.id] = {};
+                }
+                newSlotErrors[dayData.day][slot1.id].endTime = "Time slots overlap";
+                newSlotErrors[dayData.day][slot2.id].endTime = "Time slots overlap";
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    if (hasInvalidSlots) {
+      setSlotErrors(newSlotErrors);
+      const firstErrorDay = Object.keys(newSlotErrors)[0];
+      if (firstErrorDay) {
+        // const firstSlotErrors = Object.values(newSlotErrors[firstErrorDay])[0];
+        // const firstErrorField = Object.keys(firstSlotErrors)[0];
+        // const firstErrorMessage = firstSlotErrors[firstErrorField];
+        // alert(`Validation Error on ${firstErrorDay}: ${firstErrorMessage}`);
+      }
+      return;
+    }
+    
+    setSlotErrors({});
+    setStep(2); // Move to step 2 for breaks/holidays
     
   } else if (step === 2) {
-    // Your existing step 2 validation code
+    // Your existing step 2 code remains the same...
     setErrors({});
     setHolidayErrors({});
     setBreakErrors({});
@@ -751,7 +857,6 @@ function LeftSide() {
 
     let validationFailed = false;
 
-    // Validate BREAKS
     if (hasBreakData) {
       try {
         await breakValidationSchema.validate(
@@ -780,7 +885,6 @@ function LeftSide() {
       }
     }
 
-    // Validate HOLIDAYS
     if (hasHolidayData) {
       try {
         const existingHolidaysForValidation =
@@ -818,14 +922,9 @@ function LeftSide() {
       return;
     }
 
-    // Update events
     dispatch(updateEvents());
-
-    // Save breaks and holidays
     handleLogValues();
     logHolidayValues();
-
-    // Update calendar state
     dispatch(setIsCalendarPublished(true));
     dispatch(setIsEditMode(false));
     dispatch(setForm({}));
@@ -846,8 +945,7 @@ function LeftSide() {
 
     console.log("📦 Generated Payload:", payload);
 
-    // Call API
-    setTimeout(async () => {
+    // setTimeout(async () => {
       let result;
       if (isCalendarPublished) {
         result = await updateCalendarToAPI(payload);
@@ -864,7 +962,7 @@ function LeftSide() {
         dispatch(createDoctorCalendar());
         setStep(1);
       }
-    }, 600);
+    // }, 600);
 
     setStep(1);
   }
@@ -885,12 +983,17 @@ function LeftSide() {
       sx={{
         p: 2,
         borderRadius: 4,
-         height: "100vh !important",             // limit container height
+        height: "107vh !important", // limit container height
         overflowY: "auto",
         // border: "2px solid black",
-        position:"sticky",
-        top:0,
-        
+        // position: "sticky",
+        top: 0,
+        scrollbarWidth: "none", // Firefox
+    "&::-webkit-scrollbar": {
+      display: "none", // Chrome, Safari, Edge
+    },
+    msOverflowStyle: "none",
+
         // background: "linear-gradient(to bottom, #ffffff 0%, #f8fbff 100%)",
       }}
     >
@@ -907,8 +1010,8 @@ function LeftSide() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            minHeight:"100vh",
-            zIndex: 9999,
+            minHeight: "100vh",
+            // zIndex: 9999,
           }}
         >
           <CircularProgress size={60} sx={{ color: "#fff", mb: 2 }} />
@@ -943,13 +1046,9 @@ function LeftSide() {
         </Box>
       )}
 
-      <Box
-       
-      >
+      <Box>
         {(step === 1 || step === 3) && (
-          <Box
-         
-          >
+          <Box>
             <Box
               sx={{
                 background:
@@ -957,7 +1056,6 @@ function LeftSide() {
                 p: 1,
                 borderRadius: 3,
                 mb: 2,
-                
               }}
             >
               <Typography
@@ -1407,7 +1505,7 @@ function LeftSide() {
                 </Box>
               </LocalizationProvider>
             </Box> */}
-            <WorkingPlanView slotErrors ={slotErrors}/>
+            <WorkingPlanView slotErrors={slotErrors} />
           </Box>
         )}
 

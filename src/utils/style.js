@@ -35,10 +35,10 @@ const theam = createTheme(baseTheme, {
     MuiButton: {
       styleOverrides: {
         root: {
-          "&.MuiButton-containedError:hover": {
-            backgroundColor: baseTheme.palette.action.backgroundColor,
-            color: baseTheme.palette.action.color,
-          },
+          // "&.MuiButton-containedError:hover": {
+          //   backgroundColor: baseTheme.palette.action.backgroundColor,
+          //   color: baseTheme.palette.action.color,
+          // },
           "&.MuiButton-containedSecondary:hover": {
             backgroundColor: baseTheme.palette.action.backgroundColor,
             color: baseTheme.palette.action.color,

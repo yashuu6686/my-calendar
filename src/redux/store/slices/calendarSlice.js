@@ -13,7 +13,6 @@ import {
 } from "../../../utils/index";
 import axios from "axios";
 
-
 export const createDoctorCalendar = createAsyncThunk(
   "calendar/createDoctorCalendar",
   async (_, { getState, rejectWithValue }) => {
@@ -53,12 +52,16 @@ export const createDoctorCalendar = createAsyncThunk(
           breaks: state.breaks
             .filter((b) => b.days?.includes(dayObj.day))
             .map((b) => ({
-               breakStartTime: b.startTime
-            ? dayjs(b.startTime).format("HH:mm") // 🟩 FIXED — avoid Invalid Date
-            : null,
-          breakEndTime: b.endTime
-            ? dayjs(b.endTime).format("HH:mm") // 🟩 FIXED — avoid Invalid Date
-            : null,
+              breakStartTime: b.startTime
+                ? dayjs(`2025-01-01T${b.startTime}`).isValid()
+                  ? dayjs(`2025-01-01T${b.startTime}`).format("hh:mm A")
+                  : b.startTime
+                : null,
+              breakEndTime: b.endTime
+                ? dayjs(`2025-01-01T${b.endTime}`).isValid()
+                  ? dayjs(`2025-01-01T${b.endTime}`).format("hh:mm A")
+                  : b.endTime
+                : null,
             })),
           services: dayObj.slots.map((slot) => ({
             keyIdentifier:
@@ -68,20 +71,26 @@ export const createDoctorCalendar = createAsyncThunk(
                 ? "HV"
                 : "CV",
             name: slot.serviceType,
-             startTime: slot.start
-          ? dayjs(slot.start).format("HH:mm") // 🟩 FIXED — always format to HH:mm
-          : "00:00",
-        endTime: slot.end
-          ? dayjs(slot.end).format("HH:mm") // 🟩 FIXED — always format to HH:mm
-          : "00:00",
+            startTime: slot.start
+              ? dayjs(slot.start).format("HH:mm A") // 🟩 FIXED — always format to HH:mm
+              : "00:00",
+            endTime: slot.end
+              ? dayjs(slot.end).format("HH:mm A") // 🟩 FIXED — always format to HH:mm
+              : "00:00",
           })),
         })),
         holidays: state.holidays.map((h) => ({
-         date: h.date ? dayjs(h.date).format("YYYY-MM-DD") : null, 
-           startTime: h.startTime
-        ? dayjs(h.startTime).format("HH:mm") // 🟩 FIXED
-        : null,
-      endTime: h.endTime ? dayjs(h.endTime).format("HH:mm") : null, 
+          date: h.date ? dayjs(h.date).format("YYYY-MM-DD") : null,
+          startTime: h.startTime
+            ? dayjs(`2025-01-01T${h.startTime}`).isValid()
+              ? dayjs(`2025-01-01T${h.startTime}`).format("hh:mm A")
+              : h.startTime
+            : "12:00 AM",
+          endTime: h.endTime
+            ? dayjs(`2025-01-01T${h.endTime}`).isValid()
+              ? dayjs(`2025-01-01T${h.endTime}`).format("hh:mm A")
+              : h.endTime
+            : "12:00 AM",
         })),
       };
 
@@ -89,11 +98,11 @@ export const createDoctorCalendar = createAsyncThunk(
 
       // ---- Make API Call ----
       const response = await axios.post(
-       ` https://devapi.dequity.technology/createDoctorCalendar`,
+        ` https://devapi.dequity.technology/createDoctorCalendar`,
         payload
       );
-
-      return response.data;
+      const safeData = JSON.parse(JSON.stringify(response.data));
+      return safeData;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -156,7 +165,7 @@ const initialState = {
   selectedEvent: null,
   form: {},
   editingSlot: null,
-  
+
   // Time
   startTime: null,
   endTime: null,
@@ -184,7 +193,6 @@ const initialState = {
   apiError: null,
   apiSuccess: null,
 
-
   openDialog: false,
   selectedDay: null,
 };
@@ -197,7 +205,9 @@ const calendarSlice = createSlice({
     // ===== SERVICE & SPECIALITY ACTIONS =====
     toggleService: (state, action) => {
       const service = action.payload;
-      const exists = state.selectedServices.some((s) => s.type === service.type);
+      const exists = state.selectedServices.some(
+        (s) => s.type === service.type
+      );
       if (exists) {
         state.selectedServices = state.selectedServices.filter(
           (s) => s.type !== service.type
@@ -224,7 +234,12 @@ const calendarSlice = createSlice({
     addNewService: (state, action) => {
       const { serviceName, duration, serviceType } = action.payload;
       const newService = {
-        img: serviceType === "Video Call" ? video : serviceType === "Home Visit" ? home : clinic,
+        img:
+          serviceType === "Video Call"
+            ? video
+            : serviceType === "Home Visit"
+            ? home
+            : clinic,
         type: serviceName,
         time: duration.toString(),
       };
@@ -269,9 +284,12 @@ const calendarSlice = createSlice({
 
     // ===== SLOT ACTIONS =====
     addSlot: (state, action) => {
-      const { days, startTime, endTime, serviceType, speciality } = action.payload;
-      
-      const service = state.selectedServices.find((s) => s.type === serviceType);
+      const { days, startTime, endTime, serviceType, speciality } =
+        action.payload;
+
+      const service = state.selectedServices.find(
+        (s) => s.type === serviceType
+      );
       const duration = service ? parseInt(service.time) : 15;
       const newSlotId = nanoid();
 
@@ -349,8 +367,7 @@ const calendarSlice = createSlice({
 
     setHolidayValues: (state, action) => {
       state.holidayValues = action.payload;
-      console.log("+++++++++++++++++++",state.holidayValues);
-      
+      console.log("+++++++++++++++++++", state.holidayValues);
     },
 
     setHolidayEditIndex: (state, action) => {
@@ -398,6 +415,10 @@ const calendarSlice = createSlice({
       state.weekSchedule.forEach((item) => {
         const base = getNextDayOfWeek(dayToNumber[item.day]);
         item.slots.forEach((slot) => {
+           if (!slot.start || !slot.end || !dayjs.isDayjs(slot.start) || !dayjs.isDayjs(slot.end)) {
+        console.warn(`Invalid slot detected for ${item.day}:`, slot);
+        return; // Skip this slot
+      }
           newEvents.push({
             id: slot.id,
             title: `${slot.serviceType} - ${slot.speciality}`,
@@ -414,7 +435,7 @@ const calendarSlice = createSlice({
       });
       state.events = newEvents;
     },
-     openAddSlotDialog: (state, action) => {
+    openAddSlotDialog: (state, action) => {
       state.openDialog = true;
       state.selectedDay = action.payload;
     },
@@ -425,60 +446,75 @@ const calendarSlice = createSlice({
       );
     },
     addSlotToDay: (state, action) => {
-  const { day, slot } = action.payload;
-  state.weekSchedule = state.weekSchedule.map((item) =>
-    item.day === day
-      ? {
-          ...item,
-          slots: [...item.slots, slot],
-        }
-      : item
-  );
-},
+      const { day, slot } = action.payload;
+      state.weekSchedule = state.weekSchedule.map((item) =>
+        item.day === day
+          ? {
+              ...item,
+              slots: [...item.slots, slot],
+            }
+          : item
+      );
+    },
 
-removeSlotFromDay: (state, action) => {
-  const { day, slotId } = action.payload;
-  state.weekSchedule = state.weekSchedule.map((item) =>
-    item.day === day
-      ? {
-          ...item,
-          slots: item.slots.filter((slot) => slot.id !== slotId),
-        }
-      : item
-  );
-},
+    removeSlotFromDay: (state, action) => {
+      const { day, slotId } = action.payload;
+      state.weekSchedule = state.weekSchedule.map((item) =>
+        item.day === day
+          ? {
+              ...item,
+              slots: item.slots.filter((slot) => slot.id !== slotId),
+            }
+          : item
+      );
+    },
 
-updateSlotInDay: (state, action) => {
-  const { day, slotId, field, value } = action.payload;
-  state.weekSchedule = state.weekSchedule.map((item) =>
-    item.day === day
-      ? {
-          ...item,
-          slots: item.slots.map((slot) =>
-            slot.id === slotId ? { ...slot, [field]: value } : slot
-          ),
-        }
-      : item
-  );
-},
+    updateSlotInDay: (state, action) => {
+      const { day, slotId, field, value } = action.payload;
+      state.weekSchedule = state.weekSchedule.map((item) =>
+        item.day === day
+          ? {
+              ...item,
+              slots: item.slots.map((slot) => {
+                if (slot.id === slotId) {
+                  const updatedSlot = { ...slot, [field]: value };
+
+                  // ✅ If serviceType is being updated, also update duration
+                  if (field === "serviceType") {
+                    const service = state.selectedServices.find(
+                      (s) => s.type === value
+                    );
+                    updatedSlot.duration = service
+                      ? parseInt(service.time)
+                      : 15;
+                  }
+
+                  return updatedSlot;
+                }
+                return slot;
+              }),
+            }
+          : item
+      );
+    },
   },
   extraReducers: (builder) => {
-  builder
-    .addCase(createDoctorCalendar.pending, (state) => {
-      state.isLoading = true;
-      state.apiError = null;
-      state.apiSuccess = null;
-    })
-    .addCase(createDoctorCalendar.fulfilled, (state, action) => {
-      state.isLoading = false;
-      state.apiSuccess = "Doctor calendar created successfully!";
-      state.calendarId = action.payload?.calendarId || null;
-    })
-    .addCase(createDoctorCalendar.rejected, (state, action) => {
-      state.isLoading = false;
-      state.apiError = action.payload || "Failed to create calendar.";
-    });
-}
+    builder
+      .addCase(createDoctorCalendar.pending, (state) => {
+        state.isLoading = true;
+        state.apiError = null;
+        state.apiSuccess = null;
+      })
+      .addCase(createDoctorCalendar.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.apiSuccess = "Doctor calendar created successfully!";
+        state.calendarId = action.payload?.calendarId || null;
+      })
+      .addCase(createDoctorCalendar.rejected, (state, action) => {
+        state.isLoading = false;
+        state.apiError = action.payload || "Failed to create calendar.";
+      });
+  },
 });
 
 // ✅ Export Actions
@@ -518,14 +554,16 @@ export const {
   removeSlot,
   updateSlotInDay,
   removeSlotFromDay,
-  addSlotToDay
+  addSlotToDay,
 } = calendarSlice.actions;
 
 // ✅ Selectors
 export const selectAllServices = (state) => state.calendar.dataOfService;
-export const selectSelectedServices = (state) => state.calendar.selectedServices;
+export const selectSelectedServices = (state) =>
+  state.calendar.selectedServices;
 export const selectSpecialities = (state) => state.calendar.specialities;
-export const selectSelectedSpecialities = (state) => state.calendar.selectedSpecialities;
+export const selectSelectedSpecialities = (state) =>
+  state.calendar.selectedSpecialities;
 export const selectEvents = (state) => state.calendar.events;
 export const selectWeekSchedule = (state) => state.calendar.weekSchedule;
 export const selectForm = (state) => state.calendar.form;

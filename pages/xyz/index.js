@@ -410,6 +410,7 @@ export default function CalendarMerge() {
       alignItems: "center",
       justifyContent: "center",
       textAlign: "center !important",
+      
       marginLeft: "0px",
       cursor: isFieldsDisabled ? "not-allowed" : "pointer", // ✅ Change cursor
       opacity: isFieldsDisabled ? 0.7 : 1, // ✅ Reduce opacity when disabled
@@ -420,10 +421,10 @@ export default function CalendarMerge() {
   return (
     <Box bgcolor="#f9fafb" p={1}>
       <Grid container spacing={1}>
-        <Grid  size={{ md: 3.4,xs:12, }}>
+        <Grid  size={{ md: 3.1,xs:12,sm:12 }}>
           <LeftSide />
         </Grid>
-        <Grid  size={{ md: 8.6 }}>
+        <Grid  size={{ md: 8.9,xs:12,sm:12 }}>
           <Paper
             elevation={2}
             sx={{
@@ -521,7 +522,7 @@ export default function CalendarMerge() {
               defaultView="week"
               views={["day", "week", "month", "agenda"]}
               onSelectEvent={handleEventClick}
-              style={{ height: "190vh" }}
+              style={{ height: "100vh" }}
               eventPropGetter={eventStyleGetter}
               components={{
                 toolbar: (toolbarProps) => (

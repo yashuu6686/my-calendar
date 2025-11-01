@@ -1,0 +1,1 @@
+- [x] Modify handleSlotChange in WorkingPlanView.js to clear errors immediately on any input change

@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSlice, nanoid } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice, nanoid, createSelector } from "@reduxjs/toolkit";
 import dayjs from "dayjs";
 import moment from "moment";
 import {
@@ -13,13 +13,15 @@ import {
 } from "../../../utils/index";
 import axios from "axios";
 
+// =====================================================
+// ASYNC THUNK
+// =====================================================
 export const createDoctorCalendar = createAsyncThunk(
   "calendar/createDoctorCalendar",
   async (_, { getState, rejectWithValue }) => {
     try {
       const state = getState().calendar;
 
-      // ---- Construct Payload ----
       const payload = {
         routeName: "createDoctorCalendar",
         createdByKeyIdentifier: "DO",
@@ -72,10 +74,10 @@ export const createDoctorCalendar = createAsyncThunk(
                 : "CV",
             name: slot.serviceType,
             startTime: slot.start
-              ? dayjs(slot.start).format("HH:mm A") // 🟩 FIXED — always format to HH:mm
+              ? dayjs(slot.start).format("HH:mm A")
               : "00:00",
             endTime: slot.end
-              ? dayjs(slot.end).format("HH:mm A") // 🟩 FIXED — always format to HH:mm
+              ? dayjs(slot.end).format("HH:mm A")
               : "00:00",
           })),
         })),
@@ -96,9 +98,8 @@ export const createDoctorCalendar = createAsyncThunk(
 
       console.log("🟢 Generated Payload:", payload);
 
-      // ---- Make API Call ----
       const response = await axios.post(
-        ` https://devapi.dequity.technology/createDoctorCalendar`,
+        `https://devapi.dequity.technology/createDoctorCalendar`,
         payload
       );
       const safeData = JSON.parse(JSON.stringify(response.data));
@@ -109,7 +110,9 @@ export const createDoctorCalendar = createAsyncThunk(
   }
 );
 
-// ✅ Helper Functions
+// =====================================================
+// HELPER FUNCTIONS
+// =====================================================
 const dayToNumber = {
   Sunday: 0,
   Monday: 1,
@@ -128,13 +131,9 @@ const getNextDayOfWeek = (dayNum) => {
   return now.clone().add(daysToAdd, "days");
 };
 
-const generateObjectId = () => {
-  const timestamp = Math.floor(new Date().getTime() / 1000).toString(16);
-  const randomValue = Math.random().toString(16).substring(2, 18);
-  return (timestamp + randomValue).substring(0, 24);
-};
-
-// ✅ Initial State
+// =====================================================
+// INITIAL STATE (✅ OPTIMIZED - Removed redundant fields)
+// =====================================================
 const initialState = {
   // Services & Specialities
   dataOfService: [
@@ -152,8 +151,7 @@ const initialState = {
   selectedServices: [],
   selectedSpecialities: [],
 
-  // Calendar Events
-  events: [],
+  // Calendar Data (✅ weekSchedule is source of truth, events computed via selector)
   weekSchedule: Object.keys(dayToNumber).map((day) => ({
     day,
     slots: [],
@@ -162,14 +160,12 @@ const initialState = {
   // Form & Selection
   selectedDays: [],
   breakSelectedDays: [],
-  selectedEvent: null,
   form: {},
   editingSlot: null,
 
   // Time
   startTime: null,
   endTime: null,
-  step: 15,
 
   // Breaks & Holidays
   breaks: [],
@@ -183,7 +179,6 @@ const initialState = {
   holidayEditIndex: null,
 
   // UI State
-  openDialog: false,
   isCalendarPublished: false,
   isEditMode: false,
 
@@ -192,12 +187,11 @@ const initialState = {
   isLoading: false,
   apiError: null,
   apiSuccess: null,
-
-  openDialog: false,
-  selectedDay: null,
 };
 
-// ✅ Calendar Slice
+// =====================================================
+// CALENDAR SLICE
+// =====================================================
 const calendarSlice = createSlice({
   name: "calendar",
   initialState,
@@ -278,10 +272,6 @@ const calendarSlice = createSlice({
       state.endTime = action.payload;
     },
 
-    setStep: (state, action) => {
-      state.step = action.payload;
-    },
-
     // ===== SLOT ACTIONS =====
     addSlot: (state, action) => {
       const { days, startTime, endTime, serviceType, speciality } =
@@ -314,137 +304,6 @@ const calendarSlice = createSlice({
       );
     },
 
-    setEditingSlot: (state, action) => {
-      state.editingSlot = action.payload;
-    },
-
-    setSelectedEvent: (state, action) => {
-      state.selectedEvent = action.payload;
-    },
-
-    // ===== BREAK ACTIONS =====
-    addBreak: (state, action) => {
-      const newBreak = action.payload;
-      if (state.editIndex !== null) {
-        state.breaks[state.editIndex] = newBreak;
-        state.editIndex = null;
-      } else {
-        state.breaks.push(newBreak);
-      }
-      state.breakSelectedDays = [];
-      state.startTime = null;
-      state.endTime = null;
-    },
-
-    setBreaks: (state, action) => {
-      state.breaks = action.payload;
-    },
-
-    setEditIndex: (state, action) => {
-      state.editIndex = action.payload;
-    },
-
-    // ===== HOLIDAY ACTIONS =====
-    addHoliday: (state, action) => {
-      const newHoliday = action.payload;
-      if (state.holidayEditIndex !== null) {
-        state.holidays[state.holidayEditIndex] = newHoliday;
-        state.holidayEditIndex = null;
-      } else {
-        state.holidays.push(newHoliday);
-      }
-      state.holidayValues = { date: null, startTime: null, endTime: null };
-    },
-
-    setHolidays: (state, action) => {
-      state.holidays = action.payload;
-    },
-
-    deleteHoliday: (state, action) => {
-      const index = action.payload;
-      state.holidays = state.holidays.filter((_, i) => i !== index);
-    },
-
-    setHolidayValues: (state, action) => {
-      state.holidayValues = action.payload;
-      console.log("+++++++++++++++++++", state.holidayValues);
-    },
-
-    setHolidayEditIndex: (state, action) => {
-      state.holidayEditIndex = action.payload;
-    },
-
-    // ===== UI STATE =====
-    setOpenDialog: (state, action) => {
-      state.openDialog = action.payload;
-    },
-
-    setIsCalendarPublished: (state, action) => {
-      state.isCalendarPublished = action.payload;
-    },
-
-    setIsEditMode: (state, action) => {
-      state.isEditMode = action.payload;
-    },
-
-    // ===== API STATE =====
-    setCalendarId: (state, action) => {
-      state.calendarId = action.payload;
-    },
-
-    setLoading: (state, action) => {
-      state.isLoading = action.payload;
-    },
-
-    setApiError: (state, action) => {
-      state.apiError = action.payload;
-    },
-
-    setApiSuccess: (state, action) => {
-      state.apiSuccess = action.payload;
-    },
-
-    clearApiMessages: (state) => {
-      state.apiError = null;
-      state.apiSuccess = null;
-    },
-
-    // ===== EVENTS (Computed from weekSchedule) =====
-    updateEvents: (state) => {
-      const newEvents = [];
-      state.weekSchedule.forEach((item) => {
-        const base = getNextDayOfWeek(dayToNumber[item.day]);
-        item.slots.forEach((slot) => {
-           if (!slot.start || !slot.end || !dayjs.isDayjs(slot.start) || !dayjs.isDayjs(slot.end)) {
-        console.warn(`Invalid slot detected for ${item.day}:`, slot);
-        return; // Skip this slot
-      }
-          newEvents.push({
-            id: slot.id,
-            title: `${slot.serviceType} - ${slot.speciality}`,
-            start: base
-              .clone()
-              .set({ hour: slot.start.hour(), minute: slot.start.minute() })
-              .toDate(),
-            end: base
-              .clone()
-              .set({ hour: slot.end.hour(), minute: slot.end.minute() })
-              .toDate(),
-          });
-        });
-      });
-      state.events = newEvents;
-    },
-    openAddSlotDialog: (state, action) => {
-      state.openDialog = true;
-      state.selectedDay = action.payload;
-    },
-    removeSlot: (state, action) => {
-      const { day, slotId } = action.payload;
-      state.weekSchedule[day] = state.weekSchedule[day].filter(
-        (slot) => slot.id !== slotId
-      );
-    },
     addSlotToDay: (state, action) => {
       const { day, slot } = action.payload;
       state.weekSchedule = state.weekSchedule.map((item) =>
@@ -497,6 +356,92 @@ const calendarSlice = createSlice({
           : item
       );
     },
+
+    setEditingSlot: (state, action) => {
+      state.editingSlot = action.payload;
+    },
+
+    // ===== BREAK ACTIONS =====
+    addBreak: (state, action) => {
+      const newBreak = action.payload;
+      if (state.editIndex !== null) {
+        state.breaks[state.editIndex] = newBreak;
+        state.editIndex = null;
+      } else {
+        state.breaks.push(newBreak);
+      }
+      state.breakSelectedDays = [];
+      state.startTime = null;
+      state.endTime = null;
+    },
+
+    setBreaks: (state, action) => {
+      state.breaks = action.payload;
+    },
+
+    setEditIndex: (state, action) => {
+      state.editIndex = action.payload;
+    },
+
+    // ===== HOLIDAY ACTIONS =====
+    addHoliday: (state, action) => {
+      const newHoliday = action.payload;
+      if (state.holidayEditIndex !== null) {
+        state.holidays[state.holidayEditIndex] = newHoliday;
+        state.holidayEditIndex = null;
+      } else {
+        state.holidays.push(newHoliday);
+      }
+      state.holidayValues = { date: null, startTime: null, endTime: null };
+    },
+
+    setHolidays: (state, action) => {
+      state.holidays = action.payload;
+    },
+
+    deleteHoliday: (state, action) => {
+      const index = action.payload;
+      state.holidays = state.holidays.filter((_, i) => i !== index);
+    },
+
+    setHolidayValues: (state, action) => {
+      state.holidayValues = action.payload;
+    },
+
+    setHolidayEditIndex: (state, action) => {
+      state.holidayEditIndex = action.payload;
+    },
+
+    // ===== UI STATE =====
+    setIsCalendarPublished: (state, action) => {
+      state.isCalendarPublished = action.payload;
+    },
+
+    setIsEditMode: (state, action) => {
+      state.isEditMode = action.payload;
+    },
+
+    // ===== API STATE =====
+    setCalendarId: (state, action) => {
+      state.calendarId = action.payload;
+    },
+
+    setLoading: (state, action) => {
+      state.isLoading = action.payload;
+    },
+
+    setApiError: (state, action) => {
+      state.apiError = action.payload;
+    },
+
+    setApiSuccess: (state, action) => {
+      state.apiSuccess = action.payload;
+    },
+
+    clearApiMessages: (state) => {
+      state.apiError = null;
+      state.apiSuccess = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -517,7 +462,9 @@ const calendarSlice = createSlice({
   },
 });
 
-// ✅ Export Actions
+// =====================================================
+// ACTIONS EXPORT
+// =====================================================
 export const {
   toggleService,
   toggleSpeciality,
@@ -529,10 +476,8 @@ export const {
   resetForm,
   setStartTime,
   setEndTime,
-  setStep,
   addSlot,
   setEditingSlot,
-  setSelectedEvent,
   addBreak,
   setBreaks,
   setEditIndex,
@@ -541,7 +486,6 @@ export const {
   deleteHoliday,
   setHolidayValues,
   setHolidayEditIndex,
-  setOpenDialog,
   setIsCalendarPublished,
   setIsEditMode,
   setCalendarId,
@@ -549,27 +493,140 @@ export const {
   setApiError,
   setApiSuccess,
   clearApiMessages,
-  updateEvents,
-  openAddSlotDialog,
-  removeSlot,
   updateSlotInDay,
   removeSlotFromDay,
   addSlotToDay,
 } = calendarSlice.actions;
 
-// ✅ Selectors
-export const selectAllServices = (state) => state.calendar.dataOfService;
-export const selectSelectedServices = (state) =>
-  state.calendar.selectedServices;
-export const selectSpecialities = (state) => state.calendar.specialities;
-export const selectSelectedSpecialities = (state) =>
-  state.calendar.selectedSpecialities;
-export const selectEvents = (state) => state.calendar.events;
-export const selectWeekSchedule = (state) => state.calendar.weekSchedule;
-export const selectForm = (state) => state.calendar.form;
-export const selectSelectedDays = (state) => state.calendar.selectedDays;
-export const selectBreaks = (state) => state.calendar.breaks;
-export const selectHolidays = (state) => state.calendar.holidays;
-export const selectIsLoading = (state) => state.calendar.isLoading;
+// =====================================================
+// BASIC SELECTORS
+// =====================================================
+// export const selectAllServices = (state) => state.calendar.dataOfService;
+// export const selectSelectedServices = (state) => state.calendar.selectedServices;
+// export const selectSpecialities = (state) => state.calendar.specialities;
+// export const selectSelectedSpecialities = (state) => state.calendar.selectedSpecialities;
+// export const selectWeekSchedule = (state) => state.calendar.weekSchedule;
+// export const selectForm = (state) => state.calendar.form;
+// export const selectSelectedDays = (state) => state.calendar.selectedDays;
+// export const selectBreaks = (state) => state.calendar.breaks;
+// export const selectHolidays = (state) => state.calendar.holidays;
+// export const selectIsLoading = (state) => state.calendar.isLoading;
+// export const selectBreakSelectedDays = (state) => state.calendar.breakSelectedDays;
+// export const selectStartTime = (state) => state.calendar.startTime;
+// export const selectEndTime = (state) => state.calendar.endTime;
+// export const selectEditingSlot = (state) => state.calendar.editingSlot;
+// export const selectIsCalendarPublished = (state) => state.calendar.isCalendarPublished;
+// export const selectIsEditMode = (state) => state.calendar.isEditMode;
+
+// // =====================================================
+// // MEMOIZED SELECTORS (✅ OPTIMIZED)
+// // =====================================================
+
+// // ✅ Compute events from weekSchedule (no duplication in state!)
+// export const selectEvents = createSelector(
+//   [selectWeekSchedule],
+//   (weekSchedule) => {
+//     const newEvents = [];
+    
+//     weekSchedule.forEach((item) => {
+//       const base = getNextDayOfWeek(dayToNumber[item.day]);
+      
+//       item.slots.forEach((slot) => {
+//         // ✅ Handle both dayjs objects and Date objects
+//         if (!slot.start || !slot.end) {
+//           console.warn(`Invalid slot detected for ${item.day}:`, slot);
+//           return;
+//         }
+        
+//         // ✅ Extract date from dayjs or Date object
+//         let slotStart, slotEnd;
+        
+//         if (dayjs.isDayjs(slot.start)) {
+//           slotStart = slot.start.toDate();
+//         } else if (slot.start instanceof Date) {
+//           slotStart = slot.start;
+//         } else if (slot.start.$d) {
+//           slotStart = slot.start.$d;
+//         } else {
+//           console.warn(`Cannot parse start time for slot:`, slot);
+//           return;
+//         }
+        
+//         if (dayjs.isDayjs(slot.end)) {
+//           slotEnd = slot.end.toDate();
+//         } else if (slot.end instanceof Date) {
+//           slotEnd = slot.end;
+//         } else if (slot.end.$d) {
+//           slotEnd = slot.end.$d;
+//         } else {
+//           console.warn(`Cannot parse end time for slot:`, slot);
+//           return;
+//         }
+        
+//         newEvents.push({
+//           id: slot.id,
+//           title: `${slot.serviceType} - ${slot.speciality || 'N/A'}`,
+//           start: base
+//             .clone()
+//             .set({ 
+//               hour: slotStart.getHours(), 
+//               minute: slotStart.getMinutes() 
+//             })
+//             .toDate(),
+//           end: base
+//             .clone()
+//             .set({ 
+//               hour: slotEnd.getHours(), 
+//               minute: slotEnd.getMinutes() 
+//             })
+//             .toDate(),
+//         });
+//       });
+//     });
+    
+//     return newEvents;
+//   }
+// );
+
+// // ✅ Get slots for specific day
+// export const selectDaySlots = createSelector(
+//   [selectWeekSchedule, (_, day) => day],
+//   (weekSchedule, day) => {
+//     const dayData = weekSchedule.find((d) => d.day === day);
+//     return dayData ? dayData.slots : [];
+//   }
+// );
+
+// // ✅ Check if any slots exist
+// export const selectHasSlots = createSelector(
+//   [selectWeekSchedule],
+//   (weekSchedule) => weekSchedule.some(day => day.slots.length > 0)
+// );
+
+// // ✅ Get breaks for specific day
+// export const selectDayBreaks = createSelector(
+//   [selectBreaks, (_, day) => day],
+//   (breaks, day) => breaks.filter(b => b.days?.includes(day))
+// );
+
+// // ✅ Get service by type
+// export const selectServiceByType = createSelector(
+//   [selectSelectedServices, (_, serviceType) => serviceType],
+//   (services, serviceType) => services.find(s => s.type === serviceType)
+// );
+
+// // ✅ Get total slot count
+// export const selectTotalSlots = createSelector(
+//   [selectWeekSchedule],
+//   (weekSchedule) => {
+//     return weekSchedule.reduce((total, day) => total + day.slots.length, 0);
+//   }
+// );
+
+// // ✅ Check if fields should be disabled
+// export const selectIsFieldsDisabled = createSelector(
+//   [selectIsCalendarPublished, selectIsEditMode],
+//   (isPublished, isEditMode) => isPublished && !isEditMode
+// );
 
 export default calendarSlice.reducer;

@@ -35,7 +35,7 @@ const days = [
   { short: "Sat", full: "Saturday" },
 ];
 
-const WorkingPlanView = ({ slotErrors = {} }) => {
+const WorkingPlanView = ({ slotErrors = {}, clearSlotError }) => {
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [slotToDelete, setSlotToDelete] = useState(null);
 
@@ -80,32 +80,56 @@ const WorkingPlanView = ({ slotErrors = {} }) => {
     return dayData ? dayData.slots : [];
   };
 
+  // ✅ IMPROVED: Clear error immediately on ANY change
   const handleSlotChange = (day, slotId, field, value) => {
+    // First, clear the error IMMEDIATELY
+    if (clearSlotError) {
+      let errorField = field;
+      if (field === "start") errorField = "startTime";
+      if (field === "end") errorField = "endTime";
+      clearSlotError(day, slotId, errorField);
+    }
+
+    // Then update the value
     dispatch({
       type: "calendar/updateSlotInDay",
       payload: { day, slotId, field, value },
     });
-    if (value && slotErrors[day]?.[slotId]?.[field]) {
-      dispatch({
-        type: "calendar/clearSlotError",
-        payload: { day, slotId, field },
-      });
-    }
   };
 
-  // ✅ FIXED: Get slot errors properly
+  // ✅ NEW: Handle onChange for immediate error clearing (for TextField)
+  const handleServiceTypeChange = (day, slotId, value) => {
+    // Clear error first
+    if (clearSlotError) {
+      clearSlotError(day, slotId, "serviceType");
+    }
+    // Then update value
+    handleSlotChange(day, slotId, "serviceType", value);
+  };
+
+  // ✅ NEW: Handle TimePicker change with immediate error clearing
+  const handleTimeChange = (day, slotId, field, value) => {
+    // Clear error immediately
+    if (clearSlotError) {
+      const errorField = field === "start" ? "startTime" : "endTime";
+      clearSlotError(day, slotId, errorField);
+    }
+    // Then update value
+    dispatch({
+      type: "calendar/updateSlotInDay",
+      payload: { day, slotId, field, value },
+    });
+  };
+
+  // ✅ Get slot errors properly
   const getSlotErrors = (day, slotId) => {
-    // Check if slotErrors exists and has errors for this day
     if (!slotErrors || !slotErrors[day]) {
       return {};
     }
-
-    // Check if there are errors for this specific slot
     const dayErrors = slotErrors[day];
     if (!dayErrors || !dayErrors[slotId]) {
       return {};
     }
-
     return dayErrors[slotId];
   };
 
@@ -232,9 +256,8 @@ const WorkingPlanView = ({ slotErrors = {} }) => {
                   ) : (
                     <Stack spacing={2}>
                       {daySlots.map((slot, slotIndex) => {
-                        // ✅ Get errors for this specific slot
                         const errors = getSlotErrors(day.full, slot.id);
-                        
+
                         return (
                           <React.Fragment key={slot.id}>
                             <Box
@@ -242,58 +265,67 @@ const WorkingPlanView = ({ slotErrors = {} }) => {
                                 display: "flex",
                                 flexDirection: "column",
                                 mb: 1.5,
-                               
                               }}
                             >
-                              {/* Row 1: Start Time, End Time, Delete */}
-                              <Box sx={{display:"flex",alignItems:'center', }}>
-
-                              <TextField
-                              fullWidth
-                                select
-                                disabled={isFieldsDisabled}
-                                label="Service Type"
-                                sx={{
-                                  mr:1,
-                                  "& .MuiOutlinedInput-root": {
-                                    borderRadius: 3,
-                                  },
-                                }}
-                                value={slot.serviceType || ""}
-                                error={!!errors.serviceType}
-                                helperText={errors.serviceType || ""}
-                                onChange={(e) =>
-                                  handleSlotChange(
-                                    day.full,
-                                    slot.id,
-                                    "serviceType",
-                                    e.target.value
-                                  )
-                                }
+                              {/* Row 1: Service Type & Delete */}
+                              <Box
+                                sx={{ display: "flex", alignItems: "center" }}
                               >
-                                {selectedServices.map((s) => (
-                                  <MenuItem key={s.type} value={s.type}>
-                                    <Stack
-                                      direction="row"
-                                      spacing={1}
-                                      alignItems="center"
-                                    >
-                                      <span>{s.type}</span>
-                                      <Chip
-                                        label={`${s.time}m`}
-                                        size="small"
-                                        sx={{
-                                          height: 20,
-                                          fontSize: "0.7rem",
-                                          bgcolor: "#e3f2fd",
-                                          color: "#1565c0",
-                                        }}
-                                      />
-                                    </Stack>
-                                  </MenuItem>
-                                ))}
-                              </TextField>
-                               <Tooltip title="Delete Slot">
+                                <TextField
+                                  fullWidth
+                                  select
+                                  disabled={isFieldsDisabled}
+                                  label="Service Type"
+                                  sx={{
+                                    mr: 1,
+                                    "& .MuiOutlinedInput-root": {
+                                      borderRadius: 3,
+                                    },
+                                  }}
+                                  value={slot.serviceType || ""}
+                                  error={!!errors.serviceType}
+                                  helperText={errors.serviceType || ""}
+                                  onChange={(e) =>
+                                    handleServiceTypeChange(
+                                      day.full,
+                                      slot.id,
+                                      e.target.value
+                                    )
+                                  }
+                                  // ✅ NEW: Clear error on focus/input
+                                  onKeyDown={() => {
+                                    if (clearSlotError && errors.serviceType) {
+                                      clearSlotError(
+                                        day.full,
+                                        slot.id,
+                                        "serviceType"
+                                      );
+                                    }
+                                  }}
+                                >
+                                  {selectedServices.map((s) => (
+                                    <MenuItem key={s.type} value={s.type}>
+                                      <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        alignItems="center"
+                                      >
+                                        <span>{s.type}</span>
+                                        <Chip
+                                          label={`${s.time}m`}
+                                          size="small"
+                                          sx={{
+                                            height: 20,
+                                            fontSize: "0.7rem",
+                                            bgcolor: "#e3f2fd",
+                                            color: "#1565c0",
+                                          }}
+                                        />
+                                      </Stack>
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                                <Tooltip title="Delete Slot">
                                   <IconButton
                                     size="small"
                                     disabled={isFieldsDisabled}
@@ -324,6 +356,8 @@ const WorkingPlanView = ({ slotErrors = {} }) => {
                                   </IconButton>
                                 </Tooltip>
                               </Box>
+
+                              {/* Row 2: Start & End Time */}
                               <Box
                                 sx={{
                                   display: "flex",
@@ -338,7 +372,7 @@ const WorkingPlanView = ({ slotErrors = {} }) => {
                                   label="Start Time"
                                   value={slot.start ? dayjs(slot.start) : null}
                                   onChange={(newVal) =>
-                                    handleSlotChange(
+                                    handleTimeChange(
                                       day.full,
                                       slot.id,
                                       "start",
@@ -349,6 +383,19 @@ const WorkingPlanView = ({ slotErrors = {} }) => {
                                     textField: {
                                       error: !!errors.startTime,
                                       helperText: errors.startTime || "",
+                                      // ✅ NEW: Clear error on focus
+                                      onFocus: () => {
+                                        if (
+                                          clearSlotError &&
+                                          errors.startTime
+                                        ) {
+                                          clearSlotError(
+                                            day.full,
+                                            slot.id,
+                                            "startTime"
+                                          );
+                                        }
+                                      },
                                       sx: {
                                         "& .MuiFormHelperText-root": {
                                           marginLeft: "0px",
@@ -385,7 +432,7 @@ const WorkingPlanView = ({ slotErrors = {} }) => {
                                   label="End Time"
                                   value={slot.end ? dayjs(slot.end) : null}
                                   onChange={(newVal) =>
-                                    handleSlotChange(
+                                    handleTimeChange(
                                       day.full,
                                       slot.id,
                                       "end",
@@ -396,6 +443,16 @@ const WorkingPlanView = ({ slotErrors = {} }) => {
                                     textField: {
                                       error: !!errors.endTime,
                                       helperText: errors.endTime || "",
+                                      // ✅ NEW: Clear error on focus
+                                      onFocus: () => {
+                                        if (clearSlotError && errors.endTime) {
+                                          clearSlotError(
+                                            day.full,
+                                            slot.id,
+                                            "endTime"
+                                          );
+                                        }
+                                      },
                                       sx: {
                                         "& .MuiFormHelperText-root": {
                                           marginLeft: "0px",
@@ -425,13 +482,7 @@ const WorkingPlanView = ({ slotErrors = {} }) => {
                                     },
                                   }}
                                 />
-
-                                {/* Delete Button */}
-                               
                               </Box>
-
-                              {/* Row 2: Service Type */}
-                              
                             </Box>
 
                             {/* Divider after each slot except the last */}
@@ -482,11 +533,10 @@ const WorkingPlanView = ({ slotErrors = {} }) => {
             variant="contained"
             color="error"
             sx={{
-    "&:hover": {
-      backgroundColor: "error", // same as default contained error color
-      // boxShadow: "none",          // remove hover shadow
-    },
-  }}
+              "&:hover": {
+                backgroundColor: "error",
+              },
+            }}
             onClick={() => {
               if (slotToDelete) {
                 handleDeleteSlot(slotToDelete.day, slotToDelete.slotId);

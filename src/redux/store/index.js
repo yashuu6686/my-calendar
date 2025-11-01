@@ -28,7 +28,10 @@ export const store = configureStore({
           'calendar.weekSchedule',
         ],
       },
+       immutableCheck: process.env.NODE_ENV === 'development',
+        actionCreatorCheck: process.env.NODE_ENV === 'development',
     }),
+    devTools: process.env.NODE_ENV === 'development',
 });
 
 export default store;
